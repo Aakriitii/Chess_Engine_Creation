@@ -39,7 +39,7 @@ def main():
     sqSelected = () # no square is selected, kep track of the last click of the user (tuple: (row, col))
     playerClicks = [] # keeps track of player clicks (two tuples: [(6, 4), (4, 4)])
     gameOver = False
-    playerOne = False # if human isi playing white, then this will be True. If an AI is playing then false
+    playerOne = True # if human isi playing white, then this will be True. If an AI is playing then false
     playerTwo = False # same as above but for black
 
     while running:
@@ -96,7 +96,9 @@ def main():
 
         # AI move finder
         if not gameOver and not humanTurn:
-            AIMove = SmartMoveFinder.findRandomMove(validMoves)
+            AIMove = SmartMoveFinder.findBestMove(gs, validMoves)
+            if AIMove is None:
+                AIMove = SmartMoveFinder.findRandomMove(validMoves)
             gs.makeMove(AIMove)
             moveMade = True
             animate = True
