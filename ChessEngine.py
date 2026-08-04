@@ -133,6 +133,8 @@ class GameState():
                     self.board[move.endRow][move.endCol - 2] = self.board[move.endRow][move.endCol + 1] # move rook
                     self.board[move.endRow][move.endCol + 1] = '--' # empty space where rook was
 
+            self.checkMate = False
+            self.staleMate = False
     '''
     Added
     '''

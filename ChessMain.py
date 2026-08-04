@@ -94,9 +94,37 @@ def main():
                     animate = False
                     gameOver = False
 
-        # AI move finder
+        # AI move finder, Greedy Algorithm
+        # if not gameOver and not humanTurn:
+        #     AIMove = SmartMoveFinder.findBestMove(gs, validMoves)
+        #     if AIMove is None:
+        #         AIMove = SmartMoveFinder.findRandomMove(validMoves)
+        #     gs.makeMove(AIMove)
+        #     moveMade = True
+        #     animate = True
+
+        # if moveMade:
+        #     if animate:
+        #         animateMove(gs.moveLog[-1], screen, gs.board, clock)
+        #     validMoves = gs.getValidMoves()
+        #     moveMade = False
+        #     animate = False
+
+        # drawGameState(screen, gs, validMoves, sqSelected)
+
+        # if gs.checkMate:
+        #     gameOver = True
+        #     if gs.whiteToMove:
+        #         drawText(screen, "Black wins by CheckMate")
+        #     else:
+        #         drawText(screen, "White wins by CheckMate")
+        # elif gs.staleMate:
+        #     gameOver = True
+        #     drawText(screen, "StaleMate")
+
+        # AI move finder, MinMax Algorithm
         if not gameOver and not humanTurn:
-            AIMove = SmartMoveFinder.findBestMove(gs, validMoves)
+            AIMove = SmartMoveFinder.findBestMoveMinMax(gs, validMoves)
             if AIMove is None:
                 AIMove = SmartMoveFinder.findRandomMove(validMoves)
             gs.makeMove(AIMove)
