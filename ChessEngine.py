@@ -66,8 +66,9 @@ class GameState():
             self.board[move.startRow][move.endCol] = "--"
         # if pawn promotion change piece
         if move.pawnPromotion:
-            promotedPiece = input("Promote to Q, R, B or N:") # we can make this part of ui later
-            self.board[move.endRow][move.endCol] = move.pieceMoved[0] + promotedPiece
+            # promotionChoice is set by ChessMain when a human makes the move;
+            # it stays 'Q' (default) for every hypothetical move the AI considers during search
+            self.board[move.endRow][move.endCol] = move.pieceMoved[0] + move.promotionChoice
 
         # castle moves
         if move.castle:
@@ -634,7 +635,7 @@ class Move():
                    "e": 4, "f": 5, "g": 6, "h": 7}
     colsToFiles = {v:k for k, v in filesToCols.items()}
 
-    def __init__(self, startSq, endSq, board, enPassant=False, pawnPromotion=False, castle=False):
+    def __init__(self, startSq, endSq, board, enPassant=False, pawnPromotion=False, castle=False, promotionChoice='Q'):
         self.startRow = startSq[0]
         self.startCol = startSq[1]
         self.endRow = endSq[0]
@@ -644,6 +645,9 @@ class Move():
         self.enPassant = enPassant
         self.pawnPromotion = pawnPromotion
         self.castle = castle
+        # defaults to Queen ("auto-queen") so search moves never block on input;
+        # ChessMain sets this on the real move once the human picks a piece
+        self.promotionChoice = promotionChoice
         if enPassant:
             self.pieceCaptured = 'bp' if self.pieceMoved == 'wp' else 'wp' # enpassant captures oppisitecolored pawn
 
@@ -675,12 +679,11 @@ class Move():
         endSquare = self.getRankFile(self.endRow, self.endCol)
         # pawn moves
         if self.pieceMoved[1] == 'p':
+            promotionSuffix = "=" + self.promotionChoice if self.pawnPromotion else ""
             if self.isCapture:
-                return self.colsToFiles[self.startCol] + "x" + endSquare
+                return self.colsToFiles[self.startCol] + "x" + endSquare + promotionSuffix
             else:
-                return endSquare
-
-            #pawn promotion
+                return endSquare + promotionSuffix
 
         # two of the same type of piece moveing to a square, Nbd2 if both knights ca move to d2
 

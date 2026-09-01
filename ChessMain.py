@@ -45,7 +45,7 @@ def main():
     playerClicks = [] # keeps track of player clicks (two tuples: [(6, 4), (4, 4)])
     gameOver = False
     playerOne = True # if human isi playing white, then this will be True. If an AI is playing then false
-    playerTwo = False # same as above but for black
+    playerTwo = True # same as above but for black
     AIThinking = False
     moveFinderProcess = None
     moveUndone = False
@@ -77,6 +77,8 @@ def main():
                             if move == validMove:
                                 # print("Castle move:", validMove.castle)
                                 # print(validMove.getChessNotation())
+                                if validMove.pawnPromotion:
+                                    validMove.promotionChoice = getPromotionChoice(screen, gs.whiteToMove)
                                 gs.makeMove(validMove)
                                 moveMade = True
                                 moveFound = True
@@ -209,6 +211,14 @@ def drawBoard(screen):
 Highlighting the square selected and moves for piece selected
 """
 def highlightSquares(screen, gs, validMoves, sqSelected):
+    # Highlight the king in check, regardless of what's currently selected
+    if gs.inCheck and not (gs.checkMate or gs.staleMate):
+        kingRow, kingCol = gs.whiteKingLocation if gs.whiteToMove else gs.blackKingLocation
+        s = p.Surface((SQ_SIZE, SQ_SIZE))
+        s.set_alpha(150)
+        s.fill(p.Color('red'))
+        screen.blit(s, (kingCol*SQ_SIZE, kingRow*SQ_SIZE))
+
     if sqSelected != (): 
         r, c = sqSelected # reference to row and column of the square selected
         if gs.board[r][c][0] == ('w' if gs.whiteToMove else 'b'): #sqSelected is a piece that can be moved
@@ -260,7 +270,18 @@ def drawMoveLog(screen, gs, font):
         textLocation = moveLogRect.move(padding, textY)
         screen.blit(textObject, textLocation)
         textY += textObject.get_height() + lineSpacing
-    
+
+    # status banner: whose turn is in check, if any
+    if gs.inCheck and not (gs.checkMate or gs.staleMate):
+        bannerHeight = 36
+        bannerRect = p.Rect(BOARD_WIDTH, MOVE_LOG_PANEL_HEIGHT - bannerHeight,
+                             MOVE_LOG_PANEL_WIDTH, bannerHeight)
+        p.draw.rect(screen, p.Color("firebrick"), bannerRect)
+        checkFont = p.font.SysFont("Arial", 20, True, False)
+        who = "White" if gs.whiteToMove else "Black"
+        checkSurf = checkFont.render(f"{who} is in CHECK!", True, p.Color("white"))
+        checkLocation = checkSurf.get_rect(center=bannerRect.center)
+        screen.blit(checkSurf, checkLocation)
 
 """
 Animating a move
@@ -290,6 +311,84 @@ def animateMove(move, screen, board, clock):
             screen.blit(IMAGES[move.pieceMoved], p.Rect(c*SQ_SIZE, r*SQ_SIZE, SQ_SIZE, SQ_SIZE))
         p.display.flip()
         clock.tick(60)
+
+"""
+Blocks (with its own small event loop) until the human clicks one of Q/R/B/N,
+then returns that letter. Only ever called for the human's own real move —
+the AI's simulated moves during search always keep Move's default 'Q'.
+"""
+def getPromotionChoice(screen, whiteToMove):
+    color = 'w' if whiteToMove else 'b'
+    options = [('Q', 'Queen'), ('R', 'Rook'), ('B', 'Bishop'), ('N', 'Knight')]
+
+    titleFont = p.font.SysFont("Arial", 22, True, False)
+    labelFont = p.font.SysFont("Arial", 14, False, False)
+
+    boxSize = SQ_SIZE
+    gap = 16
+    labelHeight = 22
+    titleHeight = 40
+
+    totalWidth = boxSize * len(options) + gap * (len(options) + 1)
+    panelHeight = titleHeight + boxSize + labelHeight + gap * 2
+    panelRect = p.Rect(0, 0, totalWidth, panelHeight)
+    panelRect.center = (BOARD_WIDTH // 2, BOARD_HEIGHT // 2)
+
+    boxes = []
+    for i, (letter, name) in enumerate(options):
+        boxX = panelRect.left + gap + i * (boxSize + gap)
+        boxY = panelRect.top + titleHeight
+        boxes.append((p.Rect(boxX, boxY, boxSize, boxSize), letter, name))
+
+    # dim the board behind the panel so it's still visible but clearly not interactive
+    dimOverlay = p.Surface((BOARD_WIDTH, BOARD_HEIGHT))
+    dimOverlay.set_alpha(120)
+    dimOverlay.fill(p.Color("black"))
+
+    titleSurf = titleFont.render("Choose your promotion", True, p.Color("white"))
+
+    choice = None
+    choosing = True
+    while choosing:
+        mousePos = p.mouse.get_pos()
+
+        screen.blit(dimOverlay, (0, 0))
+        p.draw.rect(screen, p.Color(30, 30, 30), panelRect, border_radius=10)
+        p.draw.rect(screen, p.Color("gold"), panelRect, 2, border_radius=10)
+
+        titleLocation = titleSurf.get_rect(centerx=panelRect.centerx, top=panelRect.top + 8)
+        screen.blit(titleSurf, titleLocation)
+
+        for rect, letter, name in boxes:
+            hovered = rect.collidepoint(mousePos)
+            bgColor = p.Color("gold") if hovered else p.Color("white")
+            p.draw.rect(screen, bgColor, rect)
+            p.draw.rect(screen, p.Color("black"), rect, 2)
+            screen.blit(IMAGES[color + letter], rect)
+
+            labelColor = p.Color("gold") if hovered else p.Color("white")
+            labelSurf = labelFont.render(name, True, labelColor)
+            labelLocation = labelSurf.get_rect(centerx=rect.centerx, top=rect.bottom + 4)
+            screen.blit(labelSurf, labelLocation)
+
+        p.display.flip()
+
+        for e in p.event.get():
+            if e.type == p.QUIT:
+                p.quit()
+                exit()
+            elif e.type == p.MOUSEBUTTONDOWN:
+                for rect, letter, name in boxes:
+                    if rect.collidepoint(mousePos):
+                        choice = letter
+                        choosing = False
+            elif e.type == p.KEYDOWN:
+                keyToLetter = {p.K_q: 'Q', p.K_r: 'R', p.K_b: 'B', p.K_n: 'N'}
+                if e.key in keyToLetter:
+                    choice = keyToLetter[e.key]
+                    choosing = False
+
+    return choice
 
 def drawEndGameText(screen, text):
     font = p.font.SysFont("Helvetica", 32, True, False)
