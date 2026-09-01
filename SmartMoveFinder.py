@@ -109,14 +109,14 @@ def findBestMove(gs, validMoves):
 '''
 Helper method to make first recursive call
 '''
-def findBestMove(gs, validMoves):
+def findBestMove(gs, validMoves, returnQueue):
     global nextMove, counter
     nextMove = None
     # findMoveMinMax(gs,validMoves, DEPTH, gs.whiteToMove)
     counter = 0
     findMoveNegaMaxAlphaBeta(gs, validMoves, DEPTH, -CHECKMATE, CHECKMATE, 1 if gs.whiteToMove else -1)
     print(counter)
-    return nextMove
+    returnQueue.put(nextMove)
 
 '''
 MinMax Algorithm to find the best move based on material and depth of moves, and its slow so alpha beta pruning is used to speed up the process

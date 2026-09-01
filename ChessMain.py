@@ -4,6 +4,7 @@ This is out main driver file. It will be responsible for handling user input and
 
 import pygame as p 
 import ChessEngine, SmartMoveFinder
+from multiprocessing import Process, Queue 
 
 BOARD_WIDTH = BOARD_HEIGHT = 512 # 400 is another option
 MOVE_LOG_PANEL_WIDTH = 250
@@ -44,6 +45,9 @@ def main():
     gameOver = False
     playerOne = True # if human isi playing white, then this will be True. If an AI is playing then false
     playerTwo = False # same as above but for black
+    AIThinking = False
+    moveFinderProcess = None
+    moveUndone = False
 
     while running:
         humanTurn = (gs.whiteToMove and playerOne) or (not gs.whiteToMove and playerTwo)
@@ -52,7 +56,7 @@ def main():
                 running = False
             #mouse handler
             elif e.type == p.MOUSEBUTTONDOWN:
-                if not gameOver and humanTurn:
+                if not gameOver:
                     location = p.mouse.get_pos() # (x, y) location of mouse
                     col = location[0] // SQ_SIZE 
                     row = location[1] // SQ_SIZE
@@ -62,7 +66,7 @@ def main():
                     else:
                         sqSelected = (row, col)
                         playerClicks.append(sqSelected) # append for both 1st and 2nd clicks
-                    if len(playerClicks) == 2: # after 2nd click
+                    if len(playerClicks) == 2 and humanTurn: # after 2nd click
                         move = ChessEngine.Move(playerClicks[0], playerClicks[1], gs.board)
                         print(move.getChessNotation())
 
@@ -88,6 +92,10 @@ def main():
                     moveMade = True
                     animate = False
                     gameOver = False
+                    if AIThinking:
+                        moveFinderProcess.terminate()
+                        AIThinking = False
+                    moveUndone = True
                 if e.key == p.K_r: # reset the game when 'r' is pressed
                     gs = ChessEngine.GameState()
                     validMoves = gs.getValidMoves() 
@@ -96,6 +104,10 @@ def main():
                     moveMade = False
                     animate = False
                     gameOver = False
+                    if AIThinking:
+                        moveFinderProcess.terminate()
+                        AIThinking = False
+                    moveUndone = True
 
         # AI move finder, Greedy Algorithm
         # if not gameOver and not humanTurn:
@@ -126,13 +138,24 @@ def main():
         #     drawText(screen, "StaleMate")
 
         # AI move finder, MinMax Algorithm
-        if not gameOver and not humanTurn:
-            AIMove = SmartMoveFinder.findBestMove(gs, validMoves)
-            if AIMove is None:
-                AIMove = SmartMoveFinder.findRandomMove(validMoves)
-            gs.makeMove(AIMove)
-            moveMade = True
-            animate = True
+        if not gameOver and not humanTurn and not moveUndone:
+            if not AIThinking:
+                AIThinking = True 
+                print("Thinking...")
+                returnQueue = Queue() # used to pass data between threads
+                moveFinderProcess = Process(target = SmartMoveFinder.findBestMove, args=(gs, validMoves, returnQueue))
+                moveFinderProcess.start() # call findBestMove(gs, validMoves, returnQueue)
+                # AIMove = SmartMoveFinder.findBestMove(gs, validMoves)
+
+            if not moveFinderProcess.is_alive():
+                print("Done thinking")
+                AIMove = returnQueue.get()
+                if AIMove is None:
+                    AIMove = SmartMoveFinder.findRandomMove(validMoves)
+                gs.makeMove(AIMove)
+                moveMade = True
+                animate = True
+                AIThinking = False 
 
         if moveMade:
             if animate:
@@ -140,6 +163,7 @@ def main():
             validMoves = gs.getValidMoves()
             moveMade = False
             animate = False
+            moveUndone = False
 
         drawGameState(screen, gs, validMoves, sqSelected, moveLogFont)
 
