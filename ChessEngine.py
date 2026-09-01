@@ -603,17 +603,18 @@ class GameState():
             self.getQueensideCastleMoves(r, c, moves)
 
     def getKingsideCastleMoves(self, r, c, moves):
-        if self.board[r][c+1] == '--' and self.board[r][c+2] == '--':
-            if not self.squareUnderAttack(r, c+1) and not self.squareUnderAttack(r, c+2):
-                moves.append(Move((r, c), (r, c+2), self.board, castle=True))
+            # ensure indices are on board before accessing
+            if c + 2 < 8 and self.board[r][c+1] == '--' and self.board[r][c+2] == '--':
+                if not self.squareUnderAttack(r, c+1) and not self.squareUnderAttack(r, c+2):
+                    moves.append(Move((r, c), (r, c+2), self.board, castle=True))
 
     '''
     Generate queenside castle moves for the king at (r, c). This method will only be called if player still has castle rights queenside
     '''
-    def getQueensideCastleMoves(self, r, c, moves, allyColor):
-        # check if three square between king and rook are clear and two squares left of king are not under attact
-        if self.board[r][c-1] == '--' and self.board[r][c-2] == '--' and self.board[r][c-3] == '--' and \
-            not self.squareUnderAttack(r, c-1, allyColor) and not self.squareUnderAttack(r, c-2, allyColor):
+    def getQueensideCastleMoves(self, r, c, moves):
+            # check if three squares between king and rook are clear and two squares left of king are not under attack
+            if c - 3 >= 0 and self.board[r][c-1] == '--' and self.board[r][c-2] == '--' and self.board[r][c-3] == '--' and \
+                not self.squareUnderAttack(r, c-1) and not self.squareUnderAttack(r, c-2):
                 moves.append(Move((r, c), (r, c-2), self.board, castle=True))
 
 class CastleRights():

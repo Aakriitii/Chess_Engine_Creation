@@ -2,9 +2,10 @@
 This is out main driver file. It will be responsible for handling user input and displaying the current GameState object.
 """
 
-import pygame as p 
+import pygame as p
 import ChessEngine, SmartMoveFinder
-from multiprocessing import Process, Queue 
+from multiprocessing import Process, Queue
+import queue
 
 BOARD_WIDTH = BOARD_HEIGHT = 512 # 400 is another option
 MOVE_LOG_PANEL_WIDTH = 250
@@ -149,7 +150,10 @@ def main():
 
             if not moveFinderProcess.is_alive():
                 print("Done thinking")
-                AIMove = returnQueue.get()
+                try:
+                    AIMove = returnQueue.get(timeout=0.1)
+                except queue.Empty:
+                    AIMove = None
                 if AIMove is None:
                     AIMove = SmartMoveFinder.findRandomMove(validMoves)
                 gs.makeMove(AIMove)

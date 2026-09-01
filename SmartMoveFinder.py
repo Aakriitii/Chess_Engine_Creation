@@ -66,7 +66,9 @@ DEPTH = 2
 Picks and returns a random move
 '''
 def findRandomMove(validMoves):
-    return validMoves[random.randint(0, len(validMoves)-1)]
+    if not validMoves:
+        return None
+    return random.choice(validMoves)
 
 '''
 Find the best move based on material alone, greedy algorithm.
@@ -168,10 +170,11 @@ def findMoveNegaMax(gs, validMoves, depth, turnMultiplier):
             if depth == DEPTH:
                 nextMove = move
         gs.undoMove()
+    return maxScore
 
 
 # alpha is the upper bound of the best score for the maximizing player, and beta is the lower bound of the best score for the minimizing player
-def findMoveNegaMaxALphaBeta(gs, validMoves, depth, alpha, beta, turnMultiplier): 
+def findMoveNegaMaxAlphaBeta(gs, validMoves, depth, alpha, beta, turnMultiplier): 
     global nextMove, counter
     counter += 1
     if depth == 0:
