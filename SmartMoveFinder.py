@@ -11,7 +11,7 @@ class ChessAI:
 
     CHECKMATE = 1000
     STALEMATE = 0
-    DEPTH = 2
+    DEFAULT_DEPTH = 2
 
     pieceScore = {"K": 0, "Q": 10, "R": 5, "B": 3, "N": 3, "p": 1}
 
@@ -69,11 +69,17 @@ class ChessAI:
                        [8, 8, 8, 8, 8, 8, 8, 8],
                        [8, 8, 8, 8, 8, 8, 8, 8]]
 
-    def __init__(self):
+    def __init__(self, depth=None):
+        """
+        depth: how many plies the search looks ahead. Higher = stronger
+        but slower play. Defaults to DEFAULT_DEPTH (2, "medium") if not given.
+        Roughly: 1 = easy, 2 = medium, 3 = hard.
+        """
         self.piecePositionScores = {
             "N": self.knightScores, "Q": self.queenScores, "B": self.bishopScores,
             "R": self.rookScores, "bp": self.blackPawnScores, "wp": self.whitePawnScores
         }
+        self.depth = depth if depth is not None else self.DEFAULT_DEPTH
         self.nextMove = None
         self.counter = 0
 
@@ -92,7 +98,7 @@ class ChessAI:
         """
         self.nextMove = None
         self.counter = 0
-        self.findMoveNegaMaxAlphaBeta(gs, validMoves, self.DEPTH, -self.CHECKMATE, self.CHECKMATE,
+        self.findMoveNegaMaxAlphaBeta(gs, validMoves, self.depth, -self.CHECKMATE, self.CHECKMATE,
                                        1 if gs.whiteToMove else -1)
         print(self.counter)
         returnQueue.put(self.nextMove)
@@ -114,7 +120,7 @@ class ChessAI:
                 score = self.findMoveMinMax(gs, nextMoves, depth - 1, False)
                 if score > maxScore:
                     maxScore = score
-                    if depth == self.DEPTH:
+                    if depth == self.depth:
                         self.nextMove = move
                 gs.undoMove()
             return maxScore
@@ -126,7 +132,7 @@ class ChessAI:
                 score = self.findMoveMinMax(gs, nextMoves, depth - 1, True)
                 if score < minScore:
                     minScore = score
-                    if depth == self.DEPTH:
+                    if depth == self.depth:
                         self.nextMove = move
                 gs.undoMove()
             return minScore
@@ -144,7 +150,7 @@ class ChessAI:
             score = -self.findMoveNegaMax(gs, nextMoves, depth - 1, -turnMultiplier)
             if score > maxScore:
                 maxScore = score
-                if depth == self.DEPTH:
+                if depth == self.depth:
                     self.nextMove = move
             gs.undoMove()
         return maxScore
@@ -166,7 +172,7 @@ class ChessAI:
             score = -self.findMoveNegaMaxAlphaBeta(gs, nextMoves, depth - 1, -beta, -alpha, -turnMultiplier)
             if score > maxScore:
                 maxScore = score
-                if depth == self.DEPTH:
+                if depth == self.depth:
                     self.nextMove = move
             gs.undoMove()
             if maxScore > alpha:  # pruning happens, cutting off branches
