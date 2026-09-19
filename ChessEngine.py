@@ -226,7 +226,10 @@ class GameState():
                 # get rid of any moves that don't block check or move king
                 for i in range(len(moves) - 1, -1, -1): # go through backwards when you are removing from a list as iterating
                     if moves[i].pieceMoved[1] != 'K': # move doesn't move king so it must block or capture
-                        if not (moves[i].endRow, moves[i].endCol) in validSquares: # move doesn't block check or capture piece
+                        # en passant lands on the square behind the checking pawn, not on it, so allow it explicitly
+                        capturesCheckingPawn = moves[i].enPassant and \
+                            (moves[i].startRow, moves[i].endCol) == (checkRow, checkCol)
+                        if not (moves[i].endRow, moves[i].endCol) in validSquares and not capturesCheckingPawn: # move doesn't block check or capture piece
                             moves.remove(moves[i])
             else: # double check, king has to move
                 self.getKingMoves(kingRow, kingCol, moves)
@@ -263,6 +266,17 @@ class GameState():
     Determine if the enemy can attact the square r, c
     '''
     def squareUnderAttack(self, r, c):
+        # pawn captures are only generated when a piece stands on the target square, so an attack on an
+        # empty square (e.g. one the king castles through) has to be tested for explicitly
+        enemy = 'b' if self.whiteToMove else 'w'
+        pawnRow = r + 1 if enemy == 'w' else r - 1 # row an attacking pawn would stand on
+        enemyKingRow, enemyKingCol = self.blackKingLocation if self.whiteToMove else self.whiteKingLocation
+        if max(abs(enemyKingRow - r), abs(enemyKingCol - c)) <= 1:
+            return True
+        if 0 <= pawnRow < 8:
+            for dc in (-1, 1):
+                if 0 <= c + dc < 8 and self.board[pawnRow][c + dc] == enemy + 'p':
+                    return True
         self.whiteToMove = not self.whiteToMove # switch to opponent's turn
         oppMoves = self.getAllPossibleMoves()
         self.whiteToMove = not self.whiteToMove # switch turns back
@@ -316,7 +330,8 @@ class GameState():
 
         # if self.board[r+moveAmount][c] == "--": # 1 square move
         if 0 <= r + moveAmount < 8 and self.board[r + moveAmount][c] == "--":
-            if not piecePinned or pinDirection == (moveAmount, 0):
+            # a pinned pawn may still move along the pin line, in either direction
+            if not piecePinned or pinDirection in ((moveAmount, 0), (-moveAmount, 0)):
                 # if r+moveAmount == backRow: # if piece gets to bank rank then it is a pawn promotion
                     # pawnPromotion = True
                 promotion = (r + moveAmount == backRow)
@@ -325,7 +340,7 @@ class GameState():
                     moves.append(Move((r, c), (r+2*moveAmount, c), self.board))
         #captures
         if c-1 >= 0: # captures to the left
-            if not piecePinned or pinDirection == (moveAmount, -1):
+            if not piecePinned or pinDirection in ((moveAmount, -1), (-moveAmount, 1)):
                 if self.board[r + moveAmount][c - 1][0] == enemyColor:
                     # if r+moveAmount == backRow: # if piece gts to bank rank then it is a pawn promotion 
                         # pawnPromotion = True
@@ -346,15 +361,15 @@ class GameState():
                                 blockingPiece = True
                         for i in outsideRange:
                             square = self.board[r][i]
-                            if square[0] == enemyColor and (square[1] == "R" or square[1] == "Q"): # attacking piece
-                                attackingPiece = True
-                            elif square != "--":
-                                blockingPiece = True
+                            if square != "--":
+                                if square[0] == enemyColor and (square[1] == "R" or square[1] == "Q"): # attacking piece
+                                    attackingPiece = True
+                                break # only the first piece on the rank matters, anything behind it can't attack
                     if not attackingPiece or blockingPiece:
                         moves.append(Move((r, c), (r+moveAmount, c-1), self.board, enPassant=True))
 
         if c+1 <= 7: # captures to the right
-            if not piecePinned or pinDirection == (moveAmount, 1):
+            if not piecePinned or pinDirection in ((moveAmount, 1), (-moveAmount, -1)):
                 if self.board[r + moveAmount][c + 1][0] == enemyColor:
                     # if r+moveAmount == backRow: # if piece gts to bank rank then it is a pawn promotion 
                         # pawnPromotion = True
@@ -375,10 +390,10 @@ class GameState():
                                 blockingPiece = True
                         for i in outsideRange:
                             square = self.board[r][i]
-                            if square[0] == enemyColor and (square[1] == "R" or square[1] == "Q"): # attacking piece
-                                attackingPiece = True
-                            elif square != "--":
-                                blockingPiece = True
+                            if square != "--":
+                                if square[0] == enemyColor and (square[1] == "R" or square[1] == "Q"): # attacking piece
+                                    attackingPiece = True
+                                break # only the first piece on the rank matters, anything behind it can't attack
                     if not attackingPiece or blockingPiece:
                         moves.append(Move((r, c), (r+moveAmount, c+1), self.board, enPassant=True))
 

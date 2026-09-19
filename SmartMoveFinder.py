@@ -11,6 +11,7 @@ class ChessAI:
 
     CHECKMATE = 1000
     STALEMATE = 0
+    INFINITY = float("inf")  # search window bounds; wider than any score so mate-distance bonuses fit inside
     DEFAULT_DEPTH = 2
 
     pieceScore = {"K": 0, "Q": 10, "R": 5, "B": 3, "N": 3, "p": 1}
@@ -98,7 +99,7 @@ class ChessAI:
         """
         self.nextMove = None
         self.counter = 0
-        self.findMoveNegaMaxAlphaBeta(gs, validMoves, self.depth, -self.CHECKMATE, self.CHECKMATE,
+        self.findMoveNegaMaxAlphaBeta(gs, validMoves, self.depth, -self.INFINITY, self.INFINITY,
                                        1 if gs.whiteToMove else -1)
         print(self.counter)
         returnQueue.put(self.nextMove)
@@ -140,10 +141,10 @@ class ChessAI:
     def findMoveNegaMax(self, gs, validMoves, depth, turnMultiplier):
         """Negamax without pruning. Kept for reference; see the alpha-beta version below."""
         self.counter += 1
-        if depth == 0:
-            return turnMultiplier * self.scoreBoard(gs)
+        if depth == 0 or not validMoves:
+            return turnMultiplier * self.leafScore(gs, depth)
 
-        maxScore = -self.CHECKMATE
+        maxScore = -self.INFINITY
         for move in validMoves:
             gs.makeMove(move)
             nextMoves = gs.getValidMoves()
@@ -161,11 +162,14 @@ class ChessAI:
         beta = lower bound of the best score for the minimizing player
         """
         self.counter += 1
-        if depth == 0:
-            return turnMultiplier * self.scoreBoard(gs)
+        # also stop when there are no legal moves: that is checkmate or stalemate reached with depth to spare.
+        # Without this the empty loop below returned -CHECKMATE for stalemate too, so the AI saw
+        # stalemating its opponent as a win.
+        if depth == 0 or not validMoves:
+            return turnMultiplier * self.leafScore(gs, depth)
 
         # move ordering - implement later
-        maxScore = -self.CHECKMATE
+        maxScore = -self.INFINITY  # not -CHECKMATE: a position where every move loses would otherwise never set nextMove
         for move in validMoves:
             gs.makeMove(move)
             nextMoves = gs.getValidMoves()
@@ -180,6 +184,19 @@ class ChessAI:
             if alpha >= beta:
                 break
         return maxScore
+
+    def leafScore(self, gs, depth):
+        """
+        scoreBoard for a search leaf. depth is the search depth still remaining at the leaf, so a checkmate
+        found higher up the tree (more depth left) scores slightly better than a slower one: the AI takes
+        the quickest mate instead of a later one that scores the same.
+        """
+        score = self.scoreBoard(gs)
+        if score >= self.CHECKMATE:
+            score += depth
+        elif score <= -self.CHECKMATE:
+            score -= depth
+        return score
 
     def scoreBoard(self, gs):
         """A positive score is good for white, a negative score is good for black."""
